@@ -16,25 +16,20 @@
 
 
 #!/usr/bin/env python3
+import netfilterqueue
 
-from scapy.all import *
-from twisted.internet import *
-from twisted.internet.interfaces import *
-from netfilterqueue import NetfilterQueue
+class Reader(object):
+    def __init__(self, pktCallback, exitCallback):
+        self.q = netfilterqueue.NetfilterQueue()
+        self.pktCallback = pktCallback
+        self.exitCallback = exitCallback
 
-class QueuedReadDescriptor(object):
-    def __init__(self):
-        self.q = nfqueue.queue()
-        self.q.set_callback(nfQueueCallback)
-        self.q.fast_open(0, socket.AF_INET)
-        self.q.set_queue_maxlen(5000)
-        reactor.addReader(self)
-        self.q.set_mode(nfqueue.NFQNL_COPY_PACKET)
-    def fileno(self):
-        return self.q.get_fd()
-    def doRead(self):
-        self.q.process_pending(100)
-    def connectionLost(self, reason):
-        reactor.removeReader(self)
-    def logPrefix(self):
-        return 'queue'
+    def run(self):
+        self.q.bind(0, self.pktCallback, max_len=5000, mode=netfilterqueue.COPY_PACKET)
+
+        try:
+            self.run()
+        except KeyboardInterrupt:
+            self.q.unbind()
+            self.exitCallback()
+            

