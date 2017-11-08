@@ -14,11 +14,10 @@
 ###################################################################################################
 
 
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
+from __future__ import print_function
 from scapy.all import *
-from twisted.internet import *
-from twisted.internet.interfaces import *
 
 import argparse
 import functools
@@ -169,7 +168,7 @@ def main(arguments):
     #so it can catch all packets from the target machine
     os.system('iptables -t nat -A PREROUTING -p udp --dport 8000 -j  NFQUEUE --queue-num 1') 
     
-    ipForward = open('/proc/sys/net/ipv4/ip_forward', '+r')
+    ipForward = open('/proc/sys/net/ipv4/ip_forward', 'r+')
     ipForwardReadContents = ipForward.read()
     if ipForwardReadContents != '1\n':
         ipForward.write('1\n')

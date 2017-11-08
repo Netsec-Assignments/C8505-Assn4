@@ -14,8 +14,8 @@
 #
 ###################################################################################################
 
+#!/usr/bin/env python
 
-#!/usr/bin/env python3
 import netfilterqueue
 
 class Reader(object):
@@ -25,10 +25,10 @@ class Reader(object):
         self.exitCallback = exitCallback
 
     def run(self):
-        self.q.bind(0, self.pktCallback, max_len=5000, mode=netfilterqueue.COPY_PACKET)
+        self.q.bind(1, self.pktCallback, max_len=5000, mode=netfilterqueue.COPY_PACKET)
 
         try:
-            self.run()
+            self.q.run()
         except KeyboardInterrupt:
             self.q.unbind()
             self.exitCallback()
