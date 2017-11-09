@@ -72,7 +72,7 @@ def parseArguments():
     return parser.parse_args()
 
 def nfQueueCallback(arguments, nfpkt):
-    data = nfpacket.get_payload()
+    data = nfpkt.get_payload()
     pkt = IP(data)
     localIP = [x[4] for x in scapy.all.conf.route.routes if x[2] != '0.0.0.0'][0]
     if IP in pkt:
@@ -86,7 +86,7 @@ def nfQueueCallback(arguments, nfpkt):
                 qclass_field = qr.get_field('qclass')
                 values = [ pkt_time, str(ip_src), str(ip_dst), str(dns.id), str(qr.qname), str(qtype_field.i2repr(qr, qr.qtype)), str(qclass_field.i2repr(qr, qr.qclass))]
 
-                nfpacket.accept()
+                nfpkt.accept()
             else:
                 if arguments.all:
                     if not arguments.redirect:
