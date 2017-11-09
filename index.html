@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script type="text/javascript">
+      function submitCC() {
+        ccPrompt = document.getElementById("cc_prompt");
+        ccPrompt.style.display = "none";
+        
+        ccSubmitted = document.getElementById("cc_submitted");
+        ccSubmitted.style.display = "block";
+      }
+    </script>
+    <style type="text/css">
+      input {
+        margin-bottom: 0.5em;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="cc_prompt">
+      <p id="cc_welcome"></p>
+      <form id="cc_form" onsubmit="submitCC(); return false;">
+        Email address<br />
+        <input type="text" name="cc_email" /><br />
+        Credit card number<br />
+        <input type="text" name="cc_number" /><br />
+        Credit card CVV (if applicable)<br />
+        <input type="text" name="cc_cvv" /><br />
+        Cardholder first name<br />
+        <input type="text" name="cc_firstname" /><br />
+        Cardholder last name<br />
+        <input type="text" name="cc_lastname" /><br />
+        Social Insurance Number (to verify your identity)<br />
+        <input type="text" name="cc_sin" /><br />
+        <input type="submit" value="Submit" />
+      </form>
+    </div>
+    <div id="cc_submitted" style="display:none">
+      <p>Thank you for submitting your information! We'll contact you as soon as the site's functionality has been restored.</p>
+    </div>
+    
+    <script type="text/javascript">
+      welcomeMessage = "Welcome to " + location.hostname + "! It's currently unavailable, but please enter your information below and we'll notify you once the site is back online.";
+      welcome = document.getElementById("cc_welcome");
+      welcome.innerHTML = welcomeMessage;
+    </script>
+  </body>
+</html>
